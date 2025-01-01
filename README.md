@@ -17,6 +17,7 @@ Have fun!
 * **More complete attribute names** and **more detailed attribute explanations**.
 * **Parsed almost all attributes**.
 * The structure of the template has been rewritten, and now the structure of the chain group is **more clearly understood**.
+* Use **MHW_CTC_AddChainGroup.1sc** to add an entire ChainGroup structure with one click. Just enter the **parent id** of the newly added chain and the **ChainGroup id** to be copied. In addition, the script automatically calculates the maximum boneFunctionID in the current CTC file, and use it as the pre-entered parent id value.
 ![88b7b0db-d486-4aa4-a9cb-e0c2859433ff](https://github.com/user-attachments/assets/a142b431-c72b-4ed3-8aab-9625319ff4ec)
 ![6e226353-db2a-4e44-90a5-de91d85d1b8f](https://github.com/user-attachments/assets/dbd4345f-46f7-4b86-82b6-22bcc596064c)
 ![a4bb40cf-5c69-4a07-9024-ed6ff9df6e6d](https://github.com/user-attachments/assets/63592a3b-4dfe-4fe9-8678-26b625e4ace8)
