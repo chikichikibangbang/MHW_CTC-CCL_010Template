@@ -1,0 +1,79 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.2 Script File
+//
+//      File: MHW_CTC_InsertStruct.1sc
+//   Authors: alphaZomega, 诸葛不太亮(korone)
+//   Version: 1.0
+//   Purpose: Add new chain groups to the CTC files.
+// File Mask: *.ctc.*
+//   History: January 1, 2025 
+//
+//      Tips: 先运行CTC模板再运行此脚本
+//------------------------------------------------
+uint i, j;
+string s, u, output;
+uint max = chaingroup[0].Node[0].boneFunctionID;
+
+for (i=0; i<Header.ChainGroupCount; i++){
+    for (j=0; j<chaingroup[i].NodeNum; j++){
+        if (chaingroup[i].Node[j].boneFunctionID > max) {
+            max = chaingroup[i].Node[j].boneFunctionID;
+        }     
+    }
+}
+
+SPrintf(u, "%u", max+1);
+SPrintf(s, "%u", Header.ChainGroupCount-1);
+uint newBone = InputNumber("ParentID", "Enter a new chain parent id:", u);
+uint copyFrom = InputNumber("Copy Data", "Choose a ChainGroup[] to copy data from: ", s);
+
+
+if (sizeof(newBone) == 0) {
+    MessageBox( NULL, "Reload Required","Changes applied to file. Press F5 to reload the template.",MB_OK | MB_ICONERROR);
+}
+
+uint paddingSize = 0;
+
+uint bnHeaderSz = 80;
+uint bnDataSz = 112;
+
+char bnHeaderBytes[bnHeaderSz];
+char bnBytes[(bnDataSz * chaingroup[copyFrom].NodeNum)];
+
+//read old bone header data:
+ReadBytes(bnBytes, startof(chaingroup[copyFrom].Node[0]), sizeof(bnBytes));
+
+uint64 insertionPoint = FileSize(); 
+uint64 insertionPointOG = insertionPoint;
+
+//write new bone's chain data:
+InsertBytes(insertionPoint, sizeof(bnBytes), 0);
+WriteBytes(bnBytes, insertionPoint, sizeof(bnBytes));
+insertionPoint += sizeof(bnBytes);
+
+SPrintf(s, "final InsertionPoint: %u\n", insertionPoint);  output += s;
+uint64 diff = (insertionPoint - insertionPointOG);
+SPrintf(s, "diff: %u\n", diff);  output += s;
+
+//read old bone header:
+ReadBytes(bnHeaderBytes, startof(chaingroup[copyFrom]), bnHeaderSz);
+
+//create new bone header:
+FSeek(startof(chaingroup[Header.ChainGroupCount-1]) + bnHeaderSz);
+InsertBytes(FTell(), bnHeaderSz, 0);
+WriteBytes(bnHeaderBytes, FTell(), bnHeaderSz);
+
+//fix header count:
+Header.ChainGroupCount += 1;
+Header.ChainNodeTotalCount += chaingroup[copyFrom].NodeNum;
+
+RunTemplate("", 0);
+
+for (i=0; i<chaingroup[Header.ChainGroupCount-1].NodeNum; i++){
+    chaingroup[Header.ChainGroupCount-1].Node[i].boneFunctionID = newBone;
+    newBone += 1;
+}
+
+//RunTemplate("", 0);
+
+Printf(output);
