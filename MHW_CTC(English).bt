@@ -190,7 +190,9 @@ struct ChainGroup{
 
 
     float   SpringCoef <name="float Spring Coef", bgcolor=0xff5656>; //If SpringScaling in the Header is set to 1, it should usually be set to a value less than 1, or even less than 0.1.
-
+                                                                     //The greater the value, the harder the chain and the less the deformation.
+                                                                     //The smaller the value, the softer the chain and the greater the deformation.
+                                                                     //Setting it to a negative value is not recommended, which will lead to some unstable physical behavior. 
     float   LimitForce <name="float Limit Force">; //Usually 100.
     float   FrictionCoef <name="float Friction Coef">; //Usually 0.
     float   ReflectCoef <name="float Reflect Coef">; //Usually 0.1.
