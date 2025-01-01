@@ -92,7 +92,7 @@ struct{
                                                                            //阻尼越大,阻力越大,链的运动越缓慢和困难.阻尼越小,阻力越小,链的运动越迅速和灵活.
                                                                            //阻尼通常为0或0.1,不应设为过高的值.当值为负时,会使链获取额外的能量,从而自动运动.
 
-    float   GlobalTransForceCoef <name="float Global TransForce Coef", bgcolor=0x5656ff>; //整体反作用力系数.
+    float   GlobalTransForceCoef <name="float Global TransForce Coef", bgcolor=0x5656ff>; //整体反作用力系数.当值为1时,反作用力等于作用力,这是通常设定的数值.
                                                                                           //当值大于1时,反作用力会大于作用力,并且数值越大,链的运动幅度越剧烈.
                                                                                           //当值小于1时,反作用力会小于作用力,并且数值越小,链的运动幅度越微弱.
                                                                                           //当值为负时,反作用力和作用力会反向,会导致原本向后运动的链变为向前运动.
@@ -168,7 +168,7 @@ struct ChainGroup{
     float   Damping <name="float Damping", bgcolor=0x5656ff>; //阻尼越大,阻力越大,链的运动越缓慢和困难.阻尼越小,阻力越小,链的运动越迅速和灵活.
                                                               //阻尼通常为0或0.1,不应设为过高的值.当值为负时,会使链获取额外的能量,从而自动运动.
 
-    float   TransForceCoef <name="float TransForce Coef", bgcolor=0x56ff56>; //反作用力系数.
+    float   TransForceCoef <name="float TransForce Coef", bgcolor=0x56ff56>; //反作用力系数.当值为1时,反作用力等于作用力,这是通常设定的数值.
                                                                              //当值大于1时,反作用力会大于作用力,并且数值越大,链的运动幅度越剧烈.
                                                                              //当值小于1时,反作用力会小于作用力,并且数值越小,链的运动幅度越微弱.
                                                                              //当值为负时,反作用力和作用力会反向,会导致原本向后运动的链变为向前运动. 
