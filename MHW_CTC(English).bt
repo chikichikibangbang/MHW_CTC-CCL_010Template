@@ -1,0 +1,229 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.2 Binary Template
+//
+//      File: MHW_CTC.bt
+//   Authors: 诸葛不太亮(korone)
+//   Version: 1.0
+//   Purpose: MHW CTC File Editing
+//  Category: MHW CTC
+// File Mask: *.ctc.*
+//  ID Bytes: 43 54 43 00
+//   History: January 1, 2025      
+//------------------------------------------------
+LittleEndian();
+
+local int i <hidden=true>, j <hidden=true>, k <hidden=true>, m <hidden=true>;
+local int ChainGroupSize <hidden=true> = 80;
+local int ChainNodeSize <hidden=true> = 112;
+local int ChainGroupStartOff <hidden=true>;
+local int ChainNodeStartOff <hidden=true>;
+
+typedef struct {
+    float   WindScale <name="float WindScale", bgcolor=0xffaad4>;
+    float   WindScaleMin <name="float WindScale Min", bgcolor=0xffaad4>;
+    float   WindScaleMax <name="float WindScale Max", bgcolor=0xffaad4>;
+} WINDSCALE; //The sizes of these three parameters should be determined by default according to the rule of WindScaleMax >= WindScale >= WindScaleMin.
+
+//typedef struct {
+    //float   WindScaleMaxWeight <name="float WindScaleMax Weight">;
+    //float   WindScaleWeight <name="float WindScale Weight">;
+    //float   WindScaleMinWeight <name="float WindScaleMin Weight">;
+//} WINDSCALEWEIGHT;
+
+typedef struct {
+    ubyte SolveStrNum;
+    ubyte SolveAngNum;
+    ubyte SolveMdlColNum;
+    ubyte SolveSelColNum;
+    ubyte SolveScrColNum;
+    ubyte SolveChnColNum; 
+} SOLVENUM;
+
+typedef struct {
+	ubyte CollisionFlags_None : 1 <hidden=1>;
+	ubyte CollisionSelfEnable : 1; //Whether to allow collisions between chains (self-collisions).
+	ubyte CollisionModelEnable : 1; //Whether to allow the chain to collide with ccl file.
+	ubyte CollisionVGroundEnable : 1; //Whether the chain is allowed to collide with the ground.
+} COLLISION_ATTRIBUTEFLAG;
+
+typedef struct {
+	ubyte AngleLimitEnable : 1; // Whether to enable angle limit.
+	ubyte AngleLimitRestitutionEnable : 1; //
+	ubyte EndRotConstraintEnable : 1; //Whether rotation of end node is enabled (uncertain).
+	ubyte TransAnimationEnable : 1; //After activating, the chain will stagnate in a motion stop posture, and the specific meaning is unclear.
+    ubyte AngleFreeEnable : 1; //
+    ubyte StretchBothEnable : 1; //Whether the chain bones are allowed to stretch (depends on the mass and elasticity of the nodes)(uncertain).
+    ubyte PartBlendEnable : 1; //After activating, the chain seems to squeeze towards the center, but the specific meaning is not clear.
+    ubyte unknEnable : 1; // 
+} CHAIN_ATTRIBUTEFLAG; //Temporarily refer to Cruwa's flag enumeration to define the structure.
+
+typedef struct {
+	float x;
+    float y;
+    float z;
+} GRAVITY;
+
+typedef struct {
+    float row1[4];
+    float row2[4];
+    float row3[4];
+    float row4[4];
+} ANGLEAXIS; 
+
+FSeek(0);
+
+struct{
+    char    FileType[4] <name="File Type">; //Please do not modify this value or the model cannot be loaded.
+    uint    Version; //Please do not modify this value or the model cannot be loaded.
+    uint    ID;
+    uint    Always1000;
+    uint    ChainGroupCount <name="uint ChainGroup Count", bgcolor=0xffff56>;
+    uint    ChainNodeTotalCount <name="uint ChainNode Count", bgcolor=0xffff60>;
+    uint    AttributeFlags <name="uint Attribute Flags">; //Determine certain movement properties of the chain.
+                                                          //It is actually binary. Common values are 0, 16, 64, 68, and 80. The main difference lies in the 5 and 7 bits. The specific meaning of binary bits is not clear.
+                                                          //It also seemed that the 7 bits could not be taken on armor, which means 16=80. The 7 bits could be taken normally on pendants or cats.
+
+    float   StepTime <name="float Step Time">; //The time interval between each update of the simulation by the physics engine.
+                                               //Setting the step time to 0.16666 seconds means that the physics engine updates 60 times per second, which matches a frame rate of 60FPS.
+
+    float   GravityScaling <name="float Gravity Scaling", bgcolor=0xaa56ff>; //Multiple of the gravity applied to the chain, Usually 1.
+                                                                             //When the value is negative, the direction of gravity reverses.
+                                                                             //When the value is 0, there is no gravity.
+
+    float   GlobalDamping <name="float Global Damping", bgcolor=0x56aaff>; //The greater the damping, the greater the resistance, and the slower and more difficult the movement of the chain.
+                                                                           //The smaller the damping, the smaller the resistance, and the faster and more flexible the movement of the chain.
+                                                                           //Normally the damping is 0 or 0.1, shouldn't be set to too high.
+                                                                           //A negative value will cause the chain to gain additional energy and move automatically.
+
+    float   GlobalTransForceCoef <name="float Global TransForce Coef", bgcolor=0x5656ff>; //When the value is 1, the trans force is equal to the acting force. This is the usual value.
+                                                                                          //When the value is greater than 1, the trans force will be greater than the acting force. And the higher the value, the more intense the chain moves.
+                                                                                          //When the value is less than 1, the trans force will be less than the acting force. And the smaller the value, the weaker the chain moves.
+                                                                                          //When the value is negative, the trans force and acting force will reverse, causing the chain that was originally moving backward to move forward.
+
+    float   SpringScaling <name="float Spring Scaling", bgcolor=0x56ffff>; //Multiple of chain elasticity, Usually 1.
+                                                                           //Setting it to a negative value is not recommended, which will lead to some unstable physical behavior.
+
+    WINDSCALE WindScale <name="WindScale">; //The magnitude of the wind force exposed to the chain is divided into average (median), minimum and maximum.
+                                            //The sizes of these three parameters should be determined by default according to the rule of WindScaleMax >= WindScale >= WindScaleMin.
+
+    float   WindScaleWeight[3] <name="WindScaleWeight">; //It may mean wind weight, but the specific meaning is unclear.
+                                                         //It is unclear how these three correspond to WindScaleMaxWeight, WindScaleWeight, and WindScaleMinWeight.
+
+    SOLVENUM SolveNum <name="Solve Num">; //These six numbers represent different physical solutions or collision detection related settings. Just keep the default values.
+    byte    placeholder[2] <hidden=true, bgcolor=0x8d56a5>;    
+}Header <name="Header", bgcolor=0x93671a>;
+
+ChainGroupStartOff = 80;
+ChainNodeStartOff = 80 + ChainGroupSize*Header.ChainGroupCount;
+
+struct ChainNode{
+    local int index <hidden=true> = k;
+    ANGLEAXIS AngleAxis <name="Angle Axis Matrix">; 
+    byte    skipzero <hidden=true>;
+    ubyte   unknByte; //Unknown flag, which may actually be binary, default to 0.
+    ubyte   RefJntNo <name="Is Parent Node">; //Boolean value, which determines whether it is the first bone of a chain.
+    ubyte   unknByte; //Unknown flag, which may actually be binary or boolean. Taking 1 may make the node more compact than taking 0 (uncertain). The default is 0.
+    enum <ubyte> {
+        AngleMode_Free = 0x0,
+        AngleMode_LimitCone = 0x1,
+        AngleMode_LimitHinge = 0x2,
+        AngleMode_LimitOval = 0x3,
+    } AngleMode <name="enum Angle Mode", bgcolor=0xff60ff>; //0 Free, 1 Cone, 2 Hinge (rotating only around the Z axis), 3 Oval(Elliptic).
+                                     //When AngleMode is 2, since it only rotates around the Z axis, it can create various physical effects such as clock hands rotating, gear rotating, wheel rotating, etc.
+                                     //When AngleMode is 3, the length of the minor axis at the bottom of its elliptical cone depends on the WidthRate parameter below.
+    byte    skipzero <hidden=true>;
+    enum <ubyte> {
+        CollisionShape_None = 0x0,
+        CollisionShape_Sphere = 0x1,
+        CollisionShape_Capsule = 0x2,
+    } CollisionShape <name="enum Collision Shape", bgcolor=0xff60ff>; //0 No Collision, 1 Sphere, 2 Capsule.
+    enum <ubyte> {
+        unknEnum0 = 0x0,
+        unknEnum1 = 0x1,
+        unknEnum2 = 0x2,
+    } unknownEnum <name="enum unknEnum">; //Unknown enumeration, usually 1, but rarely used 0 and 2. Normally, you can default to 1.
+    uint    boneFunctionID <name="Bone Function ID", bgcolor=0x60aaff>; //Corresponding to the bone function ID of the MOD3 model.
+    uint   unknownIntZero <name="uint unknInt">; //Unknown int, basically 0 by default.
+    float   CollisionRadius <name="float Collision Radius", bgcolor=0x6060ff>; 
+    float   AngleLimitRadius <name="float AngleLimit Radius", bgcolor=0xff6060>; 
+    float   WidthRate <name="float Width Rate">; //Effective only when AngleMode is Oval, which represents the ratio of the minor axis to the major axis of the cone base circle.
+                                                 //When value is 1, Oval and Cone have the same effect.
+                                                 //When value is less than 1, the bottom of the cone gradually compresses into an ellipse.
+                                                 //When value is 0, Oval and Hinge have the same effect.
+
+    float   Mass; //Most CTC files default to 1, a few will have values greater than 1 or even around 10, and some will have values less than 1. It is not clear how this parameter works.
+
+    float   ElasticCoef <name="float Elastic Coef">; //Note that the elastic coef here is different from the spring coef of chain.
+                                                     //The smaller the elastic coef, the easier the node is to be stretched.
+                                                     //The larger the elastic coef, the more likely the node will be to maintain its original length.
+                                                     //Changing this value is not recommended，usually 1, which means that the node always maintains its original length.
+
+    byte    placeholder3[12] <hidden=true, bgcolor=0x8d56a5>;
+};
+
+struct ChainGroup{
+    uint    NodeNum <name="uint Chain Length", bgcolor=0x56ffff>;
+    COLLISION_ATTRIBUTEFLAG collisionAttrFlag <format=binary, name="Collision AttrFlag">; //Actually binary. See the structure defined above for specific parameters.
+    CHAIN_ATTRIBUTEFLAG chainAttrFlag <format=binary, name="Chain AttrFlag">; //Actually binary. See the structure defined above for specific parameters.
+    ubyte   unknAttrFlag; //Actually binary. Common values are 0, 1, 17, 32. More testing is needed.
+                          //Taking 1 for the 1 bits seems to make the chain harder (or recovers faster) than taking 0. 
+                          //Taking 1 for the 2 bits will force the chain to stretch, like a spring.
+
+    ubyte   unknAttrFlag; //Actually binary.
+    int     ColAttribute <name="int Collision Attribute">;
+    uint    ColGroup <name="int Collision Group">;
+    uint    ColType <name="int Collision Type">;
+    byte    placeholder1[12] <hidden=true, bgcolor=0x8d56a5>;
+    GRAVITY Gravity <name="Gravity">; //The gravity applied to the chain.
+                                      //When the value is negative, the direction of gravity reverses.When the value is 0, there is no gravity.
+                                      //GravityScaling with the Header part can be viewed as a product, so when both values are negative, the actual direction of gravity is still downward.
+    byte    placeholder2[4] <hidden=true>;
+    float   Damping <name="float Damping", bgcolor=0x5656ff>; //The greater the damping, the greater the resistance, and the slower and more difficult the movement of the chain.
+                                                              //The smaller the damping, the smaller the resistance, and the faster and more flexible the movement of the chain.
+                                                              //Normally the damping is 0 or 0.1, shouldn't be set to too high.
+                                                              //A negative value will cause the chain to gain additional energy and move automatically.
+
+    float   TransForceCoef <name="float TransForce Coef", bgcolor=0x56ff56>; //When the value is 1, the trans force is equal to the acting force. This is the usual value.
+                                                                             //When the value is greater than 1, the trans force will be greater than the acting force. And the higher the value, the more intense the chain moves.
+                                                                             //When the value is less than 1, the trans force will be less than the acting force. And the smaller the value, the weaker the chain moves.
+                                                                             //When the value is negative, the trans force and acting force will reverse, causing the chain that was originally moving backward to move forward.
+
+
+    float   SpringCoef <name="float Spring Coef", bgcolor=0xff5656>; //If SpringScaling in the Header is set to 1, it should usually be set to a value less than 1, or even less than 0.1.
+
+    float   LimitForce <name="float Limit Force">; //Usually 100.
+    float   FrictionCoef <name="float Friction Coef">; //Usually 0.
+    float   ReflectCoef <name="float Reflect Coef">; //Usually 0.1.
+    float   WindRate <name="float Wind Rate">; //The wind ratio (speed), but it may also be the IgnoreSlopeLimit parameter, is not yet certain.
+    short   WindLimit <name="short Wind Limit">; //There is a hidden variable in memory called UseWindLimit. 
+                                                 //When the WindLimit here is a negative integer, the UseWindLimit value is always 50. When the WindLimit value is a positive integer,UseWindLimit = WindLimit. 
+                                                 //only seen taking 10 in a few CTC files. You can just default to -1. 
+    byte    placeholder3[2] <hidden=true, bgcolor=0x8d56a5>;
+    
+    if (NodeNum > 0){
+        for(j = 0; j < NodeNum; j++){
+            FSeek(ChainNodeStartOff);
+            ChainNode Node <name="Node", bgcolor=0x4a2d56>;
+            ChainNodeStartOff += ChainNodeSize;              
+        }
+    }
+    ChainGroupStartOff += ChainGroupSize;
+    FSeek(ChainGroupStartOff);
+};
+
+FSeek(ChainGroupStartOff);
+
+ChainGroup chaingroup[Header.ChainGroupCount] <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID, optimize=false>;
+
+string ReadParentID(ChainGroup &c) {
+    char ParentID[3], ChainLength[3];
+    uint BFID, NodeNum; 
+    if (c.NodeNum != 0) {
+        BFID = c.Node[0].boneFunctionID;
+        NodeNum = c.NodeNum; 
+        SPrintf(ParentID, "%d", BFID);
+        SPrintf(ChainLength, "%d", NodeNum);
+        return "ParentID=" + ParentID + " , " +"ChainLength="+ ChainLength;        
+    } 
+    else { return ""; }
+}
