@@ -1,7 +1,7 @@
 //------------------------------------------------
 //--- 010 Editor v9.0.2 Script File
 //
-//      File: MHW_CTC_InsertStruct.1sc
+//      File: MHW_CTC_AddChainGroup.1sc
 //   Authors: alphaZomega, 诸葛不太亮(korone)
 //   Version: 1.0
 //   Purpose: Add new chain groups to the CTC files.
@@ -28,9 +28,6 @@ uint newBone = InputNumber("ParentID", "Enter a new chain parent id:", u);
 uint copyFrom = InputNumber("Copy Data", "Choose a ChainGroup[] to copy data from: ", s);
 
 
-if (sizeof(newBone) == 0) {
-    MessageBox( NULL, "Reload Required","Changes applied to file. Press F5 to reload the template.",MB_OK | MB_ICONERROR);
-}
 
 uint paddingSize = 0;
 
