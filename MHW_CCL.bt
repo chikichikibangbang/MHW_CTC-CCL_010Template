@@ -1,0 +1,88 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.2 Binary Template
+//
+//      File: MHW_CCL.bt
+//   Authors: 诸葛不太亮(korone)
+//   Version: 1.0
+//   Purpose: MHW CCL File Editing
+//  Category: MHW CCL
+// File Mask: *.ccl.*
+//  ID Bytes: 43 43 4C 00
+//   History: January 7, 2025      
+//------------------------------------------------
+LittleEndian();
+
+local int i <hidden=true>, j <hidden=true>, k <hidden=true>, m <hidden=true>;
+
+typedef struct {
+	float x <bgcolor=0x5656ff>;
+    float y <bgcolor=0x56ff56>;
+    float z <bgcolor=0xff5656>;
+} HEADOFFSET;
+
+typedef struct {
+	float x <bgcolor=0x5656ff>;
+    float y <bgcolor=0x56ff56>;
+    float z <bgcolor=0xff5656>;
+} TAILOFFSET;
+
+struct{
+    char    FileType[4] <name="File Type">; //Please do not modify this value or the model cannot be loaded.
+                                            //请不要修改此值,否则模型无法加载.
+
+    uint    Version; //Please do not modify this value or the model cannot be loaded.
+                     //请不要修改此值,否则模型无法加载.    
+                   
+    uint    CollisionCount <name="uint Collision Count", bgcolor=0xffff56>;
+    uint    CollisionTblOffset <name="uint Collision Total Offset", bgcolor=0xffff56>;//64*CollisionCount 
+    //If you want to add a new collision group, you need to modify CollisionCount and CollisionTblOffset at the same time.
+    //如果你要添加新的碰撞组,那么需要同时修改Header部分的CollisionCount和CollisionTblOffset,二者关系为CollisionTblOffset = 64*CollisionCount.
+
+}Header <name="Header", bgcolor=0x93671a>;
+
+ struct Collision{
+    uint    skipzero <hidden=true>;
+    ushort    HeadBoneID <name="Head Bone ID", bgcolor=0xff56aa>;
+    ushort    TailBoneID <name="Tail Bone ID", bgcolor=0xff56ff>;
+    enum <ubyte> {
+        CollisionShape_Sphere = 0x0,
+        CollisionShape_Capsule = 0x1,
+    } CollisionShape <name="enum Collision Shape", bgcolor=0x6060ff>; //0 is sphere, 1 is capsule, other values do not collide.
+                                                                      //If CollisionShape is sphere, only head bone takes effect.
+                                                                      //0为单球体,1为胶囊,其他值无碰撞.若为单球体,则只有头骨碰撞体生效.
+
+    byte    placeholder[7] <hidden=true, bgcolor=0x8d56a5>;
+    HEADOFFSET HeadOffset <name="Head Collision Offset">; //Offset value of head collision position in space.//头骨的在空间中的位置偏移值. 
+    float    skipzero <hidden=true>;
+    TAILOFFSET TailOffset <name="Tail Collision Offset">; //Offset value of tail collision position in space.//尾骨的在空间中的位置偏移值. 
+    
+    float CollisionRadius <name="float Collision Radius", bgcolor=0x56ffff>; //The radius of the collision, while controlling the radius of the sphere and two ends of the capsule.
+                                                                             //碰撞体半径,同时控制单球体的半径和胶囊的两端半径.
+    uint    skipzero <hidden=true>;
+    uint    skipzero <hidden=true>;
+    uint    skipzero <hidden=true>;
+    byte    placeholder1[4] <hidden=true, bgcolor=0x8d56a5>;
+};   
+
+struct {
+    for (i=0; i<Header.CollisionCount; i++) {
+        Collision collision <name="Collision", bgcolor=0x263f2a, read=ReadID>;
+    }
+} Collisions <name="Collisions">;
+
+string ReadID(Collision &c) {
+    char HeadID[3], TailID[3];
+    uint headid, tailid; 
+    if (c.CollisionShape != 1) {
+        headid = c.HeadBoneID;
+        SPrintf(HeadID, "%d", headid);
+        return "HeadID=" + HeadID;        
+    } 
+    else {
+        headid = c.HeadBoneID;
+        tailid = c.TailBoneID;
+        SPrintf(HeadID, "%d", headid);
+        SPrintf(TailID, "%d", tailid);
+        return "HeadID=" + HeadID + " , " +"TailID="+ TailID;
+    }
+}
