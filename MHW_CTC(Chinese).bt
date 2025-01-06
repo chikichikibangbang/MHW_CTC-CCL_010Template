@@ -3,12 +3,12 @@
 //
 //      File: MHW_CTC.bt
 //   Authors: 诸葛不太亮(korone)
-//   Version: 1.0
+//   Version: 1.1
 //   Purpose: MHW CTC File Editing
 //  Category: MHW CTC
 // File Mask: *.ctc.*
 //  ID Bytes: 43 54 43 00
-//   History: January 1, 2025      
+//   History: January 7, 2025      
 //------------------------------------------------
 LittleEndian();
 
@@ -23,6 +23,7 @@ typedef struct {
     float   WindScaleMin <name="float WindScale Min", bgcolor=0xffaad4>;
     float   WindScaleMax <name="float WindScale Max", bgcolor=0xffaad4>;
 } WINDSCALE; //这三个参数的大小应默认按照WindScaleMax >= WindScale >= WindScaleMin的规则来取值.
+             //从遍历过的CTC文件来看,似乎有着WindScale = (WindScaleMin+WindScaleMax)/2的固定关系,可能单纯是平均值.
 
 //typedef struct {
     //float   WindScaleMaxWeight <name="float WindScaleMax Weight">;
@@ -101,8 +102,9 @@ struct{
 
     WINDSCALE WindScale <name="WindScale">; //链受到的风力大小,分为平均值(中间值),最小值和最大值.
                                             //这三个参数的大小应默认按照WindScaleMax >= WindScale >= WindScaleMin的规则来取值.
-
-    float   WindScaleWeight[3] <name="WindScaleWeight">; // 可能表示风力权重,具体含义尚不清楚.
+                                            //从遍历过的CTC文件来看,似乎有着WindScale = (WindScaleMin+WindScaleMax)/2的固定关系,可能单纯是平均值.
+   
+    float   WindScaleWeight[3] <name="WindScaleWeight">; //表示各段风力权重(占比),三者总和等于1.
                                                          //尚不清楚这三个各自如何对应WindScaleMaxWeight, WindScaleWeight, WindScaleMinWeight.
 
     SOLVENUM SolveNum <name="Solve Num">; //这6个数字代表了不同的物理求解或碰撞检测相关的设置.保持默认值即可.
@@ -151,16 +153,24 @@ struct ChainNode{
     byte    placeholder3[12] <hidden=true, bgcolor=0x8d56a5>;
 };
 
+string ReadNodeID(ChainNode &c) {
+    char NodeID[3];
+    uint bfID; 
+    bfID = c.boneFunctionID;
+    SPrintf(NodeID, "%d", bfID);
+    return "NodeID=" + NodeID;        
+}     
+
 struct ChainGroup{
     uint    NodeNum <name="uint Chain Length", bgcolor=0x56ffff>;
     COLLISION_ATTRIBUTEFLAG collisionAttrFlag <format=binary, name="Collision AttrFlag">; //碰撞标志,实际为二进制.具体参数见上面定义的结构.
     CHAIN_ATTRIBUTEFLAG chainAttrFlag <format=binary, name="Chain AttrFlag">; //未知标志,实际为二进制.具体参数见上面定义的结构.
     ubyte   unknAttrFlag; //未知标志,实际为二进制.常见取值有0,1,17,32.还需更多测试.
-                             //第一位取1相比取0,链似乎会更硬一些(或者说恢复原状更快).第二位取1相比取0,链会被强制拉伸,像一根弹簧一样.
+                          //第一位取1相比取0,链似乎会更硬一些(或者说恢复原状更快).第二位取1相比取0,链会被强制拉伸,像一根弹簧一样.
     ubyte   unknAttrFlag; //未知标志,实际为二进制.
-    int     ColAttribute <name="int Collision Attribute">;
-    uint    ColGroup <name="int Collision Group">;
-    uint    ColType <name="int Collision Type">;
+    int     ColAttribute <name="int Collider Attribute">;
+    uint    ColGroup <name="int Collider Group">;
+    uint    ColType <name="int Collider Type">;
     byte    placeholder1[12] <hidden=true, bgcolor=0x8d56a5>;
     GRAVITY Gravity <name="Gravity">; //链受到的重力,通常只需要调整y轴方向的重力即可.当值为负数时,重力方向会反转.当值为0时,则无重力.
                                       //与Header部分的GravityScaling可以看做乘积关系,所以当二者值都为负时，实际的重力方向仍然是向下的.
@@ -188,7 +198,7 @@ struct ChainGroup{
     if (NodeNum > 0){
         for(j = 0; j < NodeNum; j++){
             FSeek(ChainNodeStartOff);
-            ChainNode Node <name="Node", bgcolor=0x4a2d56>;
+            ChainNode Node <name="Node", bgcolor=0x4a2d56, read=ReadNodeID>;
             ChainNodeStartOff += ChainNodeSize;              
         }
     }
@@ -198,7 +208,13 @@ struct ChainGroup{
 
 FSeek(ChainGroupStartOff);
 
-ChainGroup chaingroup[Header.ChainGroupCount] <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID, optimize=false>;
+struct {
+    for (i=0; i<Header.ChainGroupCount; i++) {
+        ChainGroup chaingroup <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID>;
+    }
+} ChainGroups <name="ChainGroups">;
+
+//ChainGroup chaingroup[Header.ChainGroupCount] <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID, optimize=false>;
 
 string ReadParentID(ChainGroup &c) {
     char ParentID[3], ChainLength[3];
