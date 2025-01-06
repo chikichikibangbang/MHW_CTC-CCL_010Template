@@ -1,0 +1,230 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.2 Binary Template
+//
+//      File: MHW_CTC.bt
+//   Authors: 诸葛不太亮(korone)
+//   Version: 1.1
+//   Purpose: MHW CTC File Editing
+//  Category: MHW CTC
+// File Mask: *.ctc.*
+//  ID Bytes: 43 54 43 00
+//   History: January 7, 2025      
+//------------------------------------------------
+LittleEndian();
+
+local int i <hidden=true>, j <hidden=true>, k <hidden=true>, m <hidden=true>;
+local int ChainGroupSize <hidden=true> = 80;
+local int ChainNodeSize <hidden=true> = 112;
+local int ChainGroupStartOff <hidden=true>;
+local int ChainNodeStartOff <hidden=true>;
+
+typedef struct {
+    float   WindScale <name="float WindScale", bgcolor=0xffaad4>;
+    float   WindScaleMin <name="float WindScale Min", bgcolor=0xffaad4>;
+    float   WindScaleMax <name="float WindScale Max", bgcolor=0xffaad4>;
+} WINDSCALE; //这三个参数的大小应默认按照WindScaleMax >= WindScale >= WindScaleMin的规则来取值.
+             //从遍历过的CTC文件来看,似乎有着WindScale = (WindScaleMin+WindScaleMax)/2的固定关系,可能单纯是平均值.
+
+//typedef struct {
+    //float   WindScaleMaxWeight <name="float WindScaleMax Weight">;
+    //float   WindScaleWeight <name="float WindScale Weight">;
+    //float   WindScaleMinWeight <name="float WindScaleMin Weight">;
+//} WINDSCALEWEIGHT;
+
+typedef struct {
+    ubyte SolveStrNum;
+    ubyte SolveAngNum;
+    ubyte SolveMdlColNum;
+    ubyte SolveSelColNum;
+    ubyte SolveScrColNum;
+    ubyte SolveChnColNum; 
+} SOLVENUM;
+
+typedef struct {
+	ubyte CollisionFlags_None : 1 <hidden=1>;
+	ubyte CollisionSelfEnable : 1; //是否允许链与链之间发生碰撞(自碰撞).
+	ubyte CollisionModelEnable : 1; //是否允许链与ccl文件的碰撞体发生碰撞.
+	ubyte CollisionVGroundEnable : 1; //是否允许链与地面发生碰撞.
+} COLLISION_ATTRIBUTEFLAG;
+
+typedef struct {
+	ubyte AngleLimitEnable : 1; // 是否启用角度限制.
+	ubyte AngleLimitRestitutionEnable : 1; //
+	ubyte EndRotConstraintEnable : 1; //是否启用尾骨的旋转(不确定).
+	ubyte TransAnimationEnable : 1; //启用后链会停滞在运动停止的姿态,尚不清楚具体含义.
+    ubyte AngleFreeEnable : 1; //
+    ubyte StretchBothEnable : 1; //是否允许链骨伸缩(取决于节点的质量和弹性)（不确定）.
+    ubyte PartBlendEnable : 1; //启用后链似乎会向中心挤压，尚不清楚具体含义.
+    ubyte unknEnable : 1; // 
+} CHAIN_ATTRIBUTEFLAG; //此处暂时参考Cruwa给出的标志枚举来定义结构.
+
+typedef struct {
+	float x;
+    float y;
+    float z;
+} GRAVITY;
+
+typedef struct {
+    float row1[4];
+    float row2[4];
+    float row3[4];
+    float row4[4];
+} ANGLEAXIS; //实际为CTC插件角度限制框架轴的局部规格化矩阵.
+
+FSeek(0);
+
+struct{
+    char    FileType[4] <name="File Type">; //请不要修改此值,否则模型无法加载.
+    uint    Version; //请不要修改此值,否则模型无法加载.
+    uint    ID;
+    uint    Always1000;
+    uint    ChainGroupCount <name="uint ChainGroup Count", bgcolor=0xffff56>;
+    uint    ChainNodeTotalCount <name="uint ChainNode Count", bgcolor=0xffff60>;
+    uint    AttributeFlags <name="uint Attribute Flags">; //决定物理链的某些运动属性.
+                                                          //实际为二进制,常见取值有0,16,64,68,80,主要区别在第5位和第7位,尚不清楚二进制位具体含义.
+                                                          //另观察到似乎在防具上无法取第七位,也就是说16=80.在吊坠或艾露猫身上可以正常取第七位.
+
+    float   StepTime <name="float Step Time">; //物理引擎每次更新模拟之间的时间间隔.
+                                               //将时间步长设置为1/60秒,意味着物理引擎每秒会进行60次更新,这与60FPS的帧率相匹配.
+
+    float   GravityScaling <name="float Gravity Scaling", bgcolor=0xaa56ff>; //链受到重力的倍数,通常为1.当值为负数时,重力方向会反转.当值为0时,则无重力.
+
+    float   GlobalDamping <name="float Global Damping", bgcolor=0x56aaff>; //整体阻尼.
+                                                                           //阻尼越大,阻力越大,链的运动越缓慢和困难.阻尼越小,阻力越小,链的运动越迅速和灵活.
+                                                                           //阻尼通常为0或0.1,不应设为过高的值.当值为负时,会使链获取额外的能量,从而自动运动.
+
+    float   GlobalTransForceCoef <name="float Global TransForce Coef", bgcolor=0x5656ff>; //整体反作用力系数.当值为1时,反作用力等于作用力,这是通常设定的数值.
+                                                                                          //当值大于1时,反作用力会大于作用力,并且数值越大,链的运动幅度越剧烈.
+                                                                                          //当值小于1时,反作用力会小于作用力,并且数值越小,链的运动幅度越微弱.
+                                                                                          //当值为负时,反作用力和作用力会反向,会导致原本向后运动的链变为向前运动.
+
+    float   SpringScaling <name="float Spring Scaling", bgcolor=0x56ffff>; //链弹性的倍数,通常为1.不建议设为负数,会导致一些不稳定的物理行为.
+
+    WINDSCALE WindScale <name="WindScale">; //链受到的风力大小,分为平均值(中间值),最小值和最大值.
+                                            //这三个参数的大小应默认按照WindScaleMax >= WindScale >= WindScaleMin的规则来取值.
+                                            //从遍历过的CTC文件来看,似乎有着WindScale = (WindScaleMin+WindScaleMax)/2的固定关系,可能单纯是平均值.
+   
+    float   WindScaleWeight[3] <name="WindScaleWeight">; //表示各段风力权重(占比),三者总和等于1.
+                                                         //尚不清楚这三个各自如何对应WindScaleMaxWeight, WindScaleWeight, WindScaleMinWeight.
+
+    SOLVENUM SolveNum <name="Solve Num">; //这6个数字代表了不同的物理求解或碰撞检测相关的设置.保持默认值即可.
+    byte    placeholder[2] <hidden=true, bgcolor=0x8d56a5>;    
+}Header <name="Header", bgcolor=0x93671a>;
+
+ChainGroupStartOff = 80;
+ChainNodeStartOff = 80 + ChainGroupSize*Header.ChainGroupCount;
+
+struct ChainNode{
+    local int index <hidden=true> = k;
+    ANGLEAXIS AngleAxis <name="Angle Axis Matrix">; ////实际为CTC插件角度限制框架轴的局部规格化矩阵.
+    byte    skipzero <hidden=true>;
+    ubyte   unknByte; //未知标志,实际可能为二进制.取0以外值的CTC文件可能没有,所以基本上不用管,默认0即可.
+    ubyte   RefJntNo <name="Is Parent Node">; //布尔值,判断是否为一条链的第一节骨骼.
+    ubyte   unknByte; //未知标志,实际可能为二进制或布尔值.取1相比取0可能会让节点更紧致一些(不确定).默认0即可.
+    enum <ubyte> {
+        AngleMode_Free = 0x0,
+        AngleMode_LimitCone = 0x1,
+        AngleMode_LimitHinge = 0x2,
+        AngleMode_LimitOval = 0x3,
+    } AngleMode <name="enum Angle Mode", bgcolor=0xff60ff>; //角度限制模式,0不限制,1圆锥体,2铰链(只绕Z轴旋转),3椭圆锥体.
+                                     //当AngleMode为2时,由于是只绕Z轴旋转,所以可以以此做出各种如钟表指针旋转,齿轮旋转,车轮旋转等物理效果.
+                                     //当AngleMode为3时,其椭圆锥体底部短轴的长度取决于下面的WidthRate参数.
+    byte    skipzero <hidden=true>;
+    enum <ubyte> {
+        CollisionShape_None = 0x0,
+        CollisionShape_Sphere = 0x1,
+        CollisionShape_Capsule = 0x2,
+    } CollisionShape <name="enum Collision Shape", bgcolor=0xff60ff>; //碰撞体形状,0无碰撞体,1球体,2胶囊.
+    enum <ubyte> {
+        unknEnum0 = 0x0,
+        unknEnum1 = 0x1,
+        unknEnum2 = 0x2,
+    } unknownEnum <name="enum unknEnum">; //未知枚举,通常为1,很少会用到0和2.平时默认1即可.
+    uint    boneFunctionID <name="Bone Function ID", bgcolor=0x60aaff>; //对应MOD3模型的骨骼功能ID.
+    uint   unknownIntZero <name="uint unknInt">; //未知整型,基本都是默认0.
+    float   CollisionRadius <name="float Collision Radius", bgcolor=0x6060ff>; //节点碰撞体半径.
+    float   AngleLimitRadius <name="float AngleLimit Radius", bgcolor=0xff6060>; //节点角度限制锥体弧度.
+    float   WidthRate <name="float Width Rate">; //仅在AngleMode为Oval时生效,代表角度限制锥体底部椭圆的宽度相较于长度的比例.
+                                                 //值为1时Oval与Cone效果相同,值小于1时圆锥底部逐渐压缩为椭圆,值为0时Oval与Hinge效果相同.
+    float   Mass; //节点质量,大部分CTC文件都是默认1,少部分取值会大于1甚至到10左右,还有一部分取值会小于1.目前不是很清楚该参数如何作用.
+    float   ElasticCoef <name="float Elastic Coef">; //弹性系数.注意此处的弹性系数与ChainGroup中的SpringCoef不一样.
+                                                     //该弹性系数越小,节点越容易被拉长.弹性系数越大,节点越倾向于保持原本的长度.
+                                                     //不建议修改此值,通常为1,即节点总是保持原本的长度.
+    byte    placeholder3[12] <hidden=true, bgcolor=0x8d56a5>;
+};
+
+string ReadNodeID(ChainNode &c) {
+    char NodeID[3];
+    uint bfID; 
+    bfID = c.boneFunctionID;
+    SPrintf(NodeID, "%d", bfID);
+    return "NodeID=" + NodeID;        
+}     
+
+struct ChainGroup{
+    uint    NodeNum <name="uint Chain Length", bgcolor=0x56ffff>;
+    COLLISION_ATTRIBUTEFLAG collisionAttrFlag <format=binary, name="Collision AttrFlag">; //碰撞标志,实际为二进制.具体参数见上面定义的结构.
+    CHAIN_ATTRIBUTEFLAG chainAttrFlag <format=binary, name="Chain AttrFlag">; //未知标志,实际为二进制.具体参数见上面定义的结构.
+    ubyte   unknAttrFlag; //未知标志,实际为二进制.常见取值有0,1,17,32.还需更多测试.
+                          //第一位取1相比取0,链似乎会更硬一些(或者说恢复原状更快).第二位取1相比取0,链会被强制拉伸,像一根弹簧一样.
+    ubyte   unknAttrFlag; //未知标志,实际为二进制.
+    int     ColAttribute <name="int Collider Attribute">;
+    uint    ColGroup <name="int Collider Group">;
+    uint    ColType <name="int Collider Type">;
+    byte    placeholder1[12] <hidden=true, bgcolor=0x8d56a5>;
+    GRAVITY Gravity <name="Gravity">; //链受到的重力,通常只需要调整y轴方向的重力即可.当值为负数时,重力方向会反转.当值为0时,则无重力.
+                                      //与Header部分的GravityScaling可以看做乘积关系,所以当二者值都为负时，实际的重力方向仍然是向下的.
+    byte    placeholder2[4] <hidden=true>;
+    float   Damping <name="float Damping", bgcolor=0x5656ff>; //阻尼越大,阻力越大,链的运动越缓慢和困难.阻尼越小,阻力越小,链的运动越迅速和灵活.
+                                                              //阻尼通常为0或0.1,不应设为过高的值.当值为负时,会使链获取额外的能量,从而自动运动.
+
+    float   TransForceCoef <name="float TransForce Coef", bgcolor=0x56ff56>; //反作用力系数.当值为1时,反作用力等于作用力,这是通常设定的数值.
+                                                                             //当值大于1时,反作用力会大于作用力,并且数值越大,链的运动幅度越剧烈.
+                                                                             //当值小于1时,反作用力会小于作用力,并且数值越小,链的运动幅度越微弱.
+                                                                             //当值为负时,反作用力和作用力会反向,会导致原本向后运动的链变为向前运动. 
+
+    float   SpringCoef <name="float Spring Coef", bgcolor=0xff5656>; //若Header部分的SpringScaling设定为1,则此处通常应设为小于1的数值,甚至小于0.1.
+                                                                     //值越大,则链越硬,相应的形变越小.值越小,则链越软,相应的形变越大.
+                                                                     //不建议设为负数,会导致一些不稳定的物理行为.
+
+    float   LimitForce <name="float Limit Force">; //限制力.通常默认为100.
+    float   FrictionCoef <name="float Friction Coef">; //摩擦系数,通常默认为0.
+    float   ReflectCoef <name="float Reflect Coef">; //反弹系数,通常默认为0.1.
+    float   WindRate <name="float Wind Rate">; //风力比例(速度),不过也有可能是IgnoreSlopeLimit参数,尚不确定.
+    short   WindLimit <name="short Wind Limit">; //在内存中有一个隐藏变量为UseWindLimit,当此处的WindLimit值为负整数时,UseWindLimit值恒为50.WindLimit值为正整数时,UseWindLimit = WindLimit. 
+                                                 //只在零星几个CTC文件中看到过取10,总之平时默认-1即可.
+    byte    placeholder3[2] <hidden=true, bgcolor=0x8d56a5>;
+    
+    if (NodeNum > 0){
+        for(j = 0; j < NodeNum; j++){
+            FSeek(ChainNodeStartOff);
+            ChainNode Node <name="Node", bgcolor=0x4a2d56, read=ReadNodeID>;
+            ChainNodeStartOff += ChainNodeSize;              
+        }
+    }
+    ChainGroupStartOff += ChainGroupSize;
+    FSeek(ChainGroupStartOff);
+};
+
+FSeek(ChainGroupStartOff);
+
+struct {
+    for (i=0; i<Header.ChainGroupCount; i++) {
+        ChainGroup chaingroup <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID>;
+    }
+} ChainGroups <name="ChainGroups">;
+
+//ChainGroup chaingroup[Header.ChainGroupCount] <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID, optimize=false>;
+
+string ReadParentID(ChainGroup &c) {
+    char ParentID[3], ChainLength[3];
+    uint BFID, NodeNum; 
+    if (c.NodeNum != 0) {
+        BFID = c.Node[0].boneFunctionID;
+        NodeNum = c.NodeNum; 
+        SPrintf(ParentID, "%d", BFID);
+        SPrintf(ChainLength, "%d", NodeNum);
+        return "ParentID=" + ParentID + " , " +"ChainLength="+ ChainLength;        
+    } 
+    else { return ""; }
+}
