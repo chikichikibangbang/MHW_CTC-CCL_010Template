@@ -3,12 +3,12 @@
 //
 //      File: MHW_CTC.bt
 //   Authors: 诸葛不太亮(korone)
-//   Version: 1.0
+//   Version: 1.1
 //   Purpose: MHW CTC File Editing
 //  Category: MHW CTC
 // File Mask: *.ctc.*
 //  ID Bytes: 43 54 43 00
-//   History: January 1, 2025      
+//   History: January 7, 2025      
 //------------------------------------------------
 LittleEndian();
 
@@ -23,6 +23,7 @@ typedef struct {
     float   WindScaleMin <name="float WindScale Min", bgcolor=0xffaad4>;
     float   WindScaleMax <name="float WindScale Max", bgcolor=0xffaad4>;
 } WINDSCALE; //The sizes of these three parameters should be determined by default according to the rule of WindScaleMax >= WindScale >= WindScaleMin.
+             ////Judging from the traversed CTC files, it seems that there is a relationship of WindScale = (WindScaleMin+WindScaleMax)/2, which may be simply an average value.
 
 //typedef struct {
     //float   WindScaleMaxWeight <name="float WindScaleMax Weight">;
@@ -105,8 +106,9 @@ struct{
 
     WINDSCALE WindScale <name="WindScale">; //The magnitude of the wind force exposed to the chain is divided into average (median), minimum and maximum.
                                             //The sizes of these three parameters should be determined by default according to the rule of WindScaleMax >= WindScale >= WindScaleMin.
+                                            //Judging from the traversed CTC files, it seems that there is a relationship of WindScale = (WindScaleMin+WindScaleMax)/2, which may be simply an average value.
 
-    float   WindScaleWeight[3] <name="WindScaleWeight">; //It may mean wind weight, but the specific meaning is unclear.
+    float   WindScaleWeight[3] <name="WindScaleWeight">; //Represents the wind weight (proportion) of each wind section, and the sum of the three values equals 1.
                                                          //It is unclear how these three correspond to WindScaleMaxWeight, WindScaleWeight, and WindScaleMinWeight.
 
     SOLVENUM SolveNum <name="Solve Num">; //These six numbers represent different physical solutions or collision detection related settings. Just keep the default values.
@@ -161,6 +163,14 @@ struct ChainNode{
     byte    placeholder3[12] <hidden=true, bgcolor=0x8d56a5>;
 };
 
+string ReadNodeID(ChainNode &c) {
+    char NodeID[3];
+    uint bfID; 
+    bfID = c.boneFunctionID;
+    SPrintf(NodeID, "%d", bfID);
+    return "NodeID=" + NodeID;        
+}     
+
 struct ChainGroup{
     uint    NodeNum <name="uint Chain Length", bgcolor=0x56ffff>;
     COLLISION_ATTRIBUTEFLAG collisionAttrFlag <format=binary, name="Collision AttrFlag">; //Actually binary. See the structure defined above for specific parameters.
@@ -170,11 +180,11 @@ struct ChainGroup{
                           //Taking 1 for the 2 bits will force the chain to stretch, like a spring.
 
     ubyte   unknAttrFlag; //Actually binary.
-    int     ColAttribute <name="int Collision Attribute">;
-    uint    ColGroup <name="int Collision Group">;
-    uint    ColType <name="int Collision Type">;
+    int     ColAttribute <name="int Collider Attribute">;
+    uint    ColGroup <name="int Collider Group">;
+    uint    ColType <name="int Collider Type">;
     byte    placeholder1[12] <hidden=true, bgcolor=0x8d56a5>;
-    GRAVITY Gravity <name="Gravity">; //The gravity applied to the chain.
+    GRAVITY Gravity <name="Gravity">; //The gravity applied to the chain, usually only need to change the Y axis gravity.
                                       //When the value is negative, the direction of gravity reverses.When the value is 0, there is no gravity.
                                       //GravityScaling with the Header part can be viewed as a product, so when both values are negative, the actual direction of gravity is still downward.
     byte    placeholder2[4] <hidden=true>;
@@ -205,7 +215,7 @@ struct ChainGroup{
     if (NodeNum > 0){
         for(j = 0; j < NodeNum; j++){
             FSeek(ChainNodeStartOff);
-            ChainNode Node <name="Node", bgcolor=0x4a2d56>;
+            ChainNode Node <name="Node", bgcolor=0x4a2d56, read=ReadNodeID>;
             ChainNodeStartOff += ChainNodeSize;              
         }
     }
@@ -215,7 +225,13 @@ struct ChainGroup{
 
 FSeek(ChainGroupStartOff);
 
-ChainGroup chaingroup[Header.ChainGroupCount] <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID, optimize=false>;
+struct {
+    for (i=0; i<Header.ChainGroupCount; i++) {
+        ChainGroup chaingroup <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID>;
+    }
+} ChainGroups <name="ChainGroups">;
+
+//ChainGroup chaingroup[Header.ChainGroupCount] <name="ChainGroup", bgcolor=0x263f2a, read=ReadParentID, optimize=false>;
 
 string ReadParentID(ChainGroup &c) {
     char ParentID[3], ChainLength[3];
