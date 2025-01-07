@@ -1,5 +1,5 @@
-# MHW_CTC_010Template
-A 010 Template to edit and analyze **.ctc** file of MonsterHunterWorld.
+# MHW_CTC&CCL_010Template
+A 010 Template to edit and analyze **.ctc** and **.ccl** file of MonsterHunterWorld.
 
 ***
 This file requires the 010 Editor found here: https://www.sweetscape.com/010editor/
@@ -8,6 +8,7 @@ To use it, follow these steps:
 1. Open up the 010 Editor, drag **MHW_CTC.bt** into the 010 editor window.
 2. Open a .ctc file of your choosing, then click the drop-down arrow on the right side of the template to select the current file and run it. 
 3. The hex window should now be colored and a result window pops up to allow modification.
+4. Ccl file is the same as above.
 
 Have fun!
 
